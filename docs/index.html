@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SlideDrop - PowerPoint to PDF Converter</title>
+    <meta
+      name="description"
+      content="SlideDrop converts PowerPoint files to PDF locally using LibreOffice. No cloud upload required."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">Local. Offline. Simple.</p>
+        <h1>Convert PowerPoint files to PDF on your desktop.</h1>
+        <p class="subtitle">
+          SlideDrop is a small desktop utility for Windows and macOS that converts
+          .ppt and .pptx files to PDF using LibreOffice on your computer.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="#downloads">Download</a>
+          <a class="button secondary" href="#requirements">Requirements</a>
+        </div>
+      </section>
+
+      <section class="card grid" id="features">
+        <div>
+          <h2>Built for batch conversion</h2>
+          <p>
+            Add files or folders, review the queue, and convert everything in one
+            local batch. Failed files do not stop the rest of the queue.
+          </p>
+        </div>
+        <div>
+          <h2>No cloud upload</h2>
+          <p>
+            SlideDrop calls LibreOffice in headless mode through a local
+            subprocess. Your PowerPoint files stay on your machine.
+          </p>
+        </div>
+        <div>
+          <h2>Practical output behavior</h2>
+          <p>
+            Folder scans write PDFs into a local pdf folder. Individually selected
+            files write PDFs beside their source files.
+          </p>
+        </div>
+      </section>
+
+      <section class="card" id="downloads">
+        <h2>Downloads</h2>
+        <div class="downloads">
+          <div>
+            <h3>Windows</h3>
+            <p>Recommended package: <code>SlideDrop-portable.zip</code></p>
+            <p class="muted">Built from Windows with PyInstaller.</p>
+          </div>
+          <div>
+            <h3>macOS</h3>
+            <p>Recommended package: <code>SlideDrop-macOS.zip</code></p>
+            <p class="muted">Must be built on macOS with <code>build-macos.sh</code>.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="requirements">
+        <h2>Requirements</h2>
+        <ul>
+          <li>LibreOffice installed locally.</li>
+          <li>Windows default path: <code>C:\Program Files\LibreOffice\program\soffice.exe</code></li>
+          <li>macOS default path: <code>/Applications/LibreOffice.app/Contents/MacOS/soffice</code></li>
+        </ul>
+        <p class="muted">
+          PDF preserves static slide visuals, but not PowerPoint animations,
+          transitions, audio, video, or interactive media behavior.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

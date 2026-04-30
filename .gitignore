@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Build outputs
+build/
+dist/
+dist-macos/
+release/
+*.spec
+!packaging/*.spec
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs and temp files
+*.log
+*.tmp
