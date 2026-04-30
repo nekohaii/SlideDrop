@@ -9,10 +9,10 @@ env/
 # Build outputs
 build/
 dist/
-dist-macos/
 release/
 *.spec
-!packaging/*.spec
+!packaging/windows/*.spec
+!packaging/macos/*.spec
 
 # OS/editor files
 .DS_Store

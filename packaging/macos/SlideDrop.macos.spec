@@ -5,7 +5,7 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, collect_submodules
 
 
-project_root = Path(SPECPATH).parent
+project_root = Path(SPECPATH).parents[1]
 entrypoint = project_root / "run.py"
 icon_path = project_root / "assets" / "slidedrop.icns"
 

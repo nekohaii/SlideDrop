@@ -5,10 +5,10 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, collect_submodules
 
 
-project_root = Path(SPECPATH).parent
+project_root = Path(SPECPATH).parents[1]
 entrypoint = project_root / "run.py"
 icon_path = project_root / "assets" / "slidedrop.ico"
-version_path = project_root / "packaging" / "version_info.txt"
+version_path = project_root / "packaging" / "windows" / "version_info.txt"
 
 datas = []
 datas += collect_data_files("customtkinter")

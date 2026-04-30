@@ -72,26 +72,26 @@ python -m pip install -r requirements.txt -r requirements-dev.txt
 Recommended portable release build:
 
 ```powershell
-.\build.ps1
+.\scripts\windows\build.ps1
 ```
 
 Output:
 
 ```text
-release\SlideDrop-portable.zip
-release\SlideDrop-portable\SlideDrop.exe
+release\windows\SlideDrop-windows-portable.zip
+release\windows\SlideDrop-portable\SlideDrop.exe
 ```
 
 Optional one-folder build:
 
 ```powershell
-.\build.ps1 -Mode OneFolder
+.\scripts\windows\build.ps1 -Mode OneFolder
 ```
 
 Build both formats:
 
 ```powershell
-.\build.ps1 -Mode Both
+.\scripts\windows\build.ps1 -Mode Both
 ```
 
 The portable single-EXE build is the clearest v1 artifact to publish because users only see one file. The one-folder build is still useful for diagnostics and future installer work. If drag-and-drop breaks in a frozen Windows build, manual **Select PowerPoint Files** and **Select Folder** flows remain the supported v1 fallback.
@@ -105,22 +105,35 @@ macOS packages must be built on macOS. PyInstaller cannot reliably create a `.ap
 On a Mac:
 
 ```bash
-chmod +x build-macos.sh
-./build-macos.sh
+chmod +x scripts/macos/build-macos.sh
+./scripts/macos/build-macos.sh
 ```
 
 Output:
 
 ```text
 release/macos/SlideDrop-macOS.zip
-dist-macos/SlideDrop.app
+dist/macos/SlideDrop.app
 ```
 
 The macOS build is intentionally separate from the Windows release output:
 
 ```text
-release/SlideDrop-portable.zip
+release/windows/SlideDrop-windows-portable.zip
 release/macos/SlideDrop-macOS.zip
+```
+
+## Project Layout
+
+Platform-specific packaging files are intentionally separated:
+
+```text
+packaging/windows/
+packaging/macos/
+scripts/windows/
+scripts/macos/
+release/windows/
+release/macos/
 ```
 
 For public distribution, Apple notarization and code signing should be added later so users do not see Gatekeeper warnings.
