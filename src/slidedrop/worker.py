@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable, Sequence
 
-from .converter import LibreOfficeConverter
+from .engines.base import ConversionEngine
 from .models import FileStatus, QueueItem
 
 
@@ -16,15 +16,13 @@ class ConversionWorker:
     def __init__(
         self,
         items: Sequence[QueueItem],
-        converter: LibreOfficeConverter,
-        high_quality: bool,
+        converter: ConversionEngine,
         on_progress: ProgressCallback,
         on_log: LogCallback,
         on_done: DoneCallback,
     ) -> None:
         self.items = list(items)
         self.converter = converter
-        self.high_quality = high_quality
         self.on_progress = on_progress
         self.on_log = on_log
         self.on_done = on_done
@@ -59,7 +57,7 @@ class ConversionWorker:
             self.on_progress(item, index - 1, total)
             self.on_log(f"Converting: {item.source_path}")
 
-            result = self.converter.convert(item, high_quality=self.high_quality)
+            result = self.converter.convert(item)
             if result.success:
                 item.status = FileStatus.DONE
                 item.output_pdf = result.output_pdf

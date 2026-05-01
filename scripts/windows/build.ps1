@@ -49,6 +49,8 @@ if ($Mode -eq "Portable" -or $Mode -eq "Both") {
     New-Item -ItemType Directory -Force -Path release\windows\SlideDrop-portable | Out-Null
     Copy-Item -Force dist\windows\SlideDrop.exe release\windows\SlideDrop-portable\SlideDrop.exe
     Copy-Item -Force README.md release\windows\SlideDrop-portable\README.txt
+    Copy-Item -Force LICENSE release\windows\SlideDrop-portable\LICENSE.txt
+    Copy-Item -Force NOTICE.txt release\windows\SlideDrop-portable\NOTICE.txt
     Compress-Archive -Path release\windows\SlideDrop-portable\* -DestinationPath release\windows\SlideDrop-windows-portable.zip -Force
 }
 

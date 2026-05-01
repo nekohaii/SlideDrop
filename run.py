@@ -8,9 +8,11 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from slidedrop.ui import App
+from slidedrop.services.logging import configure_logging
 
 
 def main() -> None:
+    configure_logging()
     app = App()
     app.mainloop()
 

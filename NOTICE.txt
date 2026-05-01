@@ -1,0 +1,18 @@
+SlideDrop Third-Party Notices
+
+SlideDrop uses LibreOffice as a local conversion engine.
+
+LibreOffice is a separate third-party project distributed under its own licenses,
+including the Mozilla Public License v2.0 and LGPL-related licensing for portions
+of the project. SlideDrop does not claim ownership of LibreOffice.
+
+Current development builds expect LibreOffice to be installed by the user or made
+available in an external resources folder. Future commercial installers may bundle
+LibreOffice as an unmodified third-party component and must include the complete
+LibreOffice license notices required by The Document Foundation.
+
+LibreOffice project:
+https://www.libreoffice.org/
+
+LibreOffice source and license information:
+https://www.libreoffice.org/about-us/licenses/

@@ -2,15 +2,24 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .engines.base import ConversionEngine
+from .engines.libreoffice import LibreOfficeStrategy
 from .models import FileStatus, QueueItem
 from .scanner import FileScanner
 
 
 class ConversionManager:
-    def __init__(self, scanner: FileScanner | None = None) -> None:
+    def __init__(self, scanner: FileScanner | None = None, engine: ConversionEngine | None = None) -> None:
         self.scanner = scanner or FileScanner()
+        self.engine = engine or LibreOfficeStrategy()
         self.items: list[QueueItem] = []
         self._known_sources: set[Path] = set()
+
+    def set_engine(self, engine: ConversionEngine) -> None:
+        self.engine = engine
+
+    def validate_engine(self) -> tuple[bool, str]:
+        return self.engine.validate()
 
     def add_paths(self, paths: list[str | Path]) -> list[QueueItem]:
         added: list[QueueItem] = []

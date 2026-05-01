@@ -10,10 +10,12 @@ from tkinter import filedialog, messagebox, ttk
 import customtkinter as ctk
 
 from .config import APP_NAME, APP_VERSION
-from .converter import LibreOfficeConverter
+from .engines.discovery import discover_libreoffice
+from .engines.libreoffice import LibreOfficeStrategy
 from .manager import ConversionManager
 from .models import FileStatus, QueueItem
-from .settings import SessionSettings
+from .services.logging import configure_logging
+from .settings import SettingsStore
 from .worker import ConversionWorker
 
 try:
@@ -59,6 +61,7 @@ class App(DnDCTk):
         self.geometry("1040x750")
         self.resizable(False, False)
         self._center_window(1040, 750)
+        self.report_callback_exception = self._handle_callback_exception
         self.main_window = MainWindow(self)
         self.main_window.pack(fill="both", expand=True)
 
@@ -67,6 +70,11 @@ class App(DnDCTk):
         x = max((self.winfo_screenwidth() - width) // 2, 0)
         y = max((self.winfo_screenheight() - height) // 2, 0)
         self.geometry(f"{width}x{height}+{x}+{y}")
+
+    def _handle_callback_exception(self, exc_type, exc_value, exc_traceback) -> None:
+        logger = configure_logging()
+        logger.error("Unhandled UI error", exc_info=(exc_type, exc_value, exc_traceback))
+        messagebox.showerror(APP_NAME, "Something went wrong. Details were saved to the SlideDrop log file.")
 
 
 class DropZone(ctk.CTkFrame):
@@ -175,19 +183,86 @@ class DropZone(ctk.CTkFrame):
         self.on_drop_paths(paths)
 
 
+class LibreOfficeSettingsDialog(ctk.CTkToplevel):
+    def __init__(self, master, current_path: Path | None, on_save) -> None:
+        super().__init__(master)
+        self.title("LibreOffice Settings")
+        self.geometry("620x260")
+        self.resizable(False, False)
+        self.transient(master)
+        self.grab_set()
+        self.on_save = on_save
+        detected_path = discover_libreoffice(current_path)
+        self.path_var = tk.StringVar(value=str(current_path or detected_path or ""))
+        self.detected_var = tk.StringVar(value=str(detected_path or "Not found"))
+
+        self.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            self,
+            text="LibreOffice Settings",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).grid(row=0, column=0, padx=24, pady=(22, 6), sticky="w")
+        ctk.CTkLabel(
+            self,
+            text="Choose soffice.exe if auto-detect does not find LibreOffice.",
+            text_color="#cbd5e1",
+        ).grid(row=1, column=0, padx=24, pady=(0, 14), sticky="w")
+        ctk.CTkLabel(self, text="Detected path", text_color="#93c5fd").grid(
+            row=2, column=0, padx=24, sticky="w"
+        )
+        ctk.CTkLabel(self, textvariable=self.detected_var, text_color="#d8e4f3", wraplength=560).grid(
+            row=3, column=0, padx=24, pady=(2, 10), sticky="w"
+        )
+        path_row = ctk.CTkFrame(self, fg_color="transparent")
+        path_row.grid(row=4, column=0, padx=24, pady=(0, 16), sticky="ew")
+        path_row.grid_columnconfigure(0, weight=1)
+        ctk.CTkEntry(path_row, textvariable=self.path_var).grid(row=0, column=0, sticky="ew")
+        ctk.CTkButton(path_row, text="Browse", width=90, command=self._browse).grid(
+            row=0, column=1, padx=(10, 0)
+        )
+        actions = ctk.CTkFrame(self, fg_color="transparent")
+        actions.grid(row=5, column=0, padx=24, sticky="e")
+        ctk.CTkButton(actions, text="Reset to Auto", width=120, command=self._reset).grid(
+            row=0, column=0, padx=(0, 10)
+        )
+        ctk.CTkButton(actions, text="Cancel", width=90, command=self.destroy, fg_color="#1f2937").grid(
+            row=0, column=1, padx=(0, 10)
+        )
+        ctk.CTkButton(actions, text="Save", width=90, command=self._save).grid(row=0, column=2)
+
+    def _browse(self) -> None:
+        filetypes = [("LibreOffice executable", "soffice.exe soffice"), ("All files", "*.*")]
+        selected = filedialog.askopenfilename(title="Select LibreOffice executable", filetypes=filetypes)
+        if selected:
+            self.path_var.set(selected)
+
+    def _reset(self) -> None:
+        self.path_var.set("")
+        self.detected_var.set(str(discover_libreoffice(None) or "Not found"))
+
+    def _save(self) -> None:
+        raw_path = self.path_var.get().strip()
+        path = Path(raw_path) if raw_path else None
+        if path and (not path.exists() or not path.is_file()):
+            messagebox.showerror(APP_NAME, "Choose a valid LibreOffice executable.")
+            return
+        self.on_save(path)
+        self.destroy()
+
+
 class MainWindow(ctk.CTkFrame):
     def __init__(self, master: App) -> None:
         super().__init__(master, corner_radius=0, fg_color="#0b1020")
         self.master = master
-        self.settings = SessionSettings()
-        self.manager = ConversionManager()
-        self.converter = LibreOfficeConverter()
+        self.logger = configure_logging()
+        self.settings_store = SettingsStore()
+        self.settings = self.settings_store.load()
+        self.manager = ConversionManager(engine=LibreOfficeStrategy(self.settings.libreoffice_path))
         self.worker: ConversionWorker | None = None
         self.event_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self.selected_ids: set[str] = set()
 
-        self.high_quality_var = tk.BooleanVar(value=False)
-        self.open_output_var = tk.BooleanVar(value=False)
+        self.open_output_var = tk.BooleanVar(value=self.settings.open_output_when_finished)
         self.file_count_var = tk.StringVar(value="0 files queued")
         self.summary_var = tk.StringVar(value="Ready")
         self.logs_visible = False
@@ -369,16 +444,7 @@ class MainWindow(ctk.CTkFrame):
         self.progress.grid_remove()
         options = ctk.CTkFrame(convert_card, fg_color="transparent")
         options.grid(row=2, column=0, columnspan=2, padx=16, pady=(0, 12), sticky="ew")
-        options.grid_columnconfigure(2, weight=1)
-        ctk.CTkCheckBox(
-            options,
-            text="High Quality PDF (experimental)",
-            variable=self.high_quality_var,
-            fg_color="#2563eb",
-            hover_color="#1d4ed8",
-            border_color="#3b82f6",
-            checkmark_color="#ffffff",
-        ).grid(row=0, column=0, padx=(0, 16), sticky="w")
+        options.grid_columnconfigure(1, weight=1)
         ctk.CTkCheckBox(
             options,
             text="Open output when finished",
@@ -387,7 +453,7 @@ class MainWindow(ctk.CTkFrame):
             hover_color="#1d4ed8",
             border_color="#3b82f6",
             checkmark_color="#ffffff",
-        ).grid(row=0, column=1, sticky="w")
+        ).grid(row=0, column=0, sticky="w")
         self.convert_button = ctk.CTkButton(
             options,
             text="Convert to PDF",
@@ -398,7 +464,7 @@ class MainWindow(ctk.CTkFrame):
             hover_color="#1d4ed8",
             font=ctk.CTkFont(weight="bold"),
         )
-        self.convert_button.grid(row=0, column=3, sticky="e")
+        self.convert_button.grid(row=0, column=2, sticky="e")
 
         self.success_card = ctk.CTkFrame(self, corner_radius=14, fg_color="#052e1a")
         self.success_card.grid(row=4, column=0, padx=56, pady=(0, 8), sticky="ew")
@@ -417,7 +483,7 @@ class MainWindow(ctk.CTkFrame):
 
         details_bar = ctk.CTkFrame(self, fg_color="transparent")
         details_bar.grid(row=5, column=0, padx=56, pady=(4, 18), sticky="ew")
-        details_bar.grid_columnconfigure(1, weight=1)
+        details_bar.grid_columnconfigure(3, weight=1)
         self.details_button = ctk.CTkButton(
             details_bar,
             text="Show logs",
@@ -427,12 +493,30 @@ class MainWindow(ctk.CTkFrame):
             hover_color="#334155",
         )
         self.details_button.grid(row=0, column=0, sticky="w")
+        self.settings_button = ctk.CTkButton(
+            details_bar,
+            text="Settings",
+            width=90,
+            command=self.open_settings_dialog,
+            fg_color="#1f2937",
+            hover_color="#334155",
+        )
+        self.settings_button.grid(row=0, column=1, padx=(8, 0), sticky="w")
+        self.copy_logs_button = ctk.CTkButton(
+            details_bar,
+            text="Copy logs",
+            width=90,
+            command=self.copy_logs_to_clipboard,
+            fg_color="#1f2937",
+            hover_color="#334155",
+        )
+        self.copy_logs_button.grid(row=0, column=2, padx=(8, 0), sticky="w")
         ctk.CTkLabel(
             details_bar,
             text="PDF keeps static slide visuals, but not animations, transitions, audio, or video interactivity.",
             text_color="#94a3b8",
         ).grid(
-            row=0, column=1, padx=10, sticky="w"
+            row=0, column=3, padx=10, sticky="w"
         )
 
         self.log_box = ctk.CTkTextbox(self, height=140)
@@ -467,6 +551,7 @@ class MainWindow(ctk.CTkFrame):
         )
         if files:
             self.settings.last_used_folder = Path(files[0]).parent
+            self.settings_store.save(self.settings)
             self.add_paths([Path(file) for file in files])
 
     def select_folder(self) -> None:
@@ -474,6 +559,7 @@ class MainWindow(ctk.CTkFrame):
         folder = filedialog.askdirectory(title="Select a folder to scan", initialdir=initialdir)
         if folder:
             self.settings.last_used_folder = Path(folder)
+            self.settings_store.save(self.settings)
             self.add_paths([Path(folder)])
 
     def add_paths(self, paths: list[Path]) -> None:
@@ -573,7 +659,7 @@ class MainWindow(ctk.CTkFrame):
             messagebox.showinfo(APP_NAME, "Add PowerPoint files before converting.")
             return
 
-        valid, message = self.converter.validate()
+        valid, message = self.manager.validate_engine()
         if not valid:
             messagebox.showerror(APP_NAME, message)
             self.log(message)
@@ -589,10 +675,8 @@ class MainWindow(ctk.CTkFrame):
             self.log("Conversion cancelled before start.")
             return
 
-        self.settings.high_quality_pdf = self.high_quality_var.get()
         self.settings.open_output_when_finished = self.open_output_var.get()
-        if self.settings.high_quality_pdf:
-            self.log("High Quality PDF is experimental in v1; using the reliable LibreOffice default export path.")
+        self.settings_store.save(self.settings)
 
         self._show_progress()
         self.progress.set(0)
@@ -601,8 +685,7 @@ class MainWindow(ctk.CTkFrame):
         self._update_action_states(is_converting=True)
         self.worker = ConversionWorker(
             items=items,
-            converter=self.converter,
-            high_quality=self.settings.high_quality_pdf,
+            converter=self.manager.engine,
             on_progress=lambda item, current, total: self.event_queue.put(("progress", (item, current, total))),
             on_log=lambda text: self.event_queue.put(("log", text)),
             on_done=lambda success, failed: self.event_queue.put(("done", (success, failed))),
@@ -717,6 +800,26 @@ class MainWindow(ctk.CTkFrame):
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.log_box.insert("end", f"[{timestamp}] {text}\n")
         self.log_box.see("end")
+        self.logger.info(text)
+
+    def copy_logs_to_clipboard(self) -> None:
+        text = self.log_box.get("1.0", "end").strip()
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self.log("Copied logs to clipboard.")
+
+    def open_settings_dialog(self) -> None:
+        LibreOfficeSettingsDialog(self.master, self.settings.libreoffice_path, self._save_libreoffice_path)
+
+    def _save_libreoffice_path(self, path: Path | None) -> None:
+        self.settings.libreoffice_path = path
+        self.settings_store.save(self.settings)
+        self.manager.set_engine(LibreOfficeStrategy(path))
+        valid, message = self.manager.validate_engine()
+        if valid:
+            self.log(message)
+        else:
+            self.log(message)
 
     def _selected_item(self) -> QueueItem | None:
         selected_id = next(iter(self.selected_ids), None)

@@ -1,73 +1,95 @@
 # SlideDrop
 
-SlideDrop is a local Windows desktop utility that converts PowerPoint files (`.ppt` and `.pptx`) to PDF using LibreOffice in headless mode. It runs fully offline and does not use cloud APIs.
+SlideDrop is a local-first desktop utility that converts PowerPoint files
+(`.ppt` and `.pptx`) to PDF using LibreOffice on the user's machine. Windows is
+the primary supported platform today; macOS packaging is prepared as a separate
+track.
 
-SlideDrop uses a fixed-size 1040x750 utility window in v1. This avoids CustomTkinter's expensive live-resize redraws and keeps the conversion workflow visually stable.
+Website: https://nekohaii.github.io/SlideDrop/
 
-## Quick Start
+## Download
 
-1. Install LibreOffice for Windows.
-2. Confirm the LibreOffice executable exists, or update `DEFAULT_LIBREOFFICE_PATH` in `src/slidedrop/config.py`.
+Download the latest Windows build from GitHub Releases:
 
-   Windows:
+https://github.com/nekohaii/SlideDrop/releases
 
-   ```text
-   C:\Program Files\LibreOffice\program\soffice.exe
-   ```
+Current package name:
 
-   macOS:
+```text
+SlideDrop-windows-portable.zip
+```
 
-   ```text
-   /Applications/LibreOffice.app/Contents/MacOS/soffice
-   ```
+Unzip the package and run `SlideDrop.exe`.
 
-3. Create and activate a virtual environment:
+## Features
 
-   ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   ```
+- Convert individual PowerPoint files or entire folders.
+- Recursively scans selected folders for `.ppt` and `.pptx` files.
+- Prevents duplicate files in the queue.
+- Converts in a background worker so the UI stays responsive.
+- Writes folder-scan PDFs into a local `pdf` folder.
+- Writes individually selected mixed-location PDFs beside their source files.
+- Keeps files local; no cloud upload is used.
 
-4. Install dependencies:
+## Limitations
 
-   ```powershell
-   python -m pip install -r requirements.txt
-   ```
+SlideDrop relies on LibreOffice Impress PDF export. It preserves static slide
+visuals as closely as LibreOffice allows, but missing fonts may cause layout
+changes or font substitution.
 
-5. Run the app:
+PDF is a static format. Animations, transitions, audio, video, and interactive
+PowerPoint behavior are not preserved.
 
-   ```powershell
-   python run.py
-   ```
+## LibreOffice
 
-## How To Use
+Development builds can use a system LibreOffice installation or a bundled
+runtime placed in `resources/`.
 
-- Use **Select PowerPoint Files** to add individual `.ppt` or `.pptx` files.
-- Use **Select Folder** to recursively scan a folder for PowerPoint files.
-- Drag-and-drop files or folders into the drop zone when `tkinterdnd2` works on your Windows setup.
-- Review the queue, then click **Convert to PDF** to start batch conversion.
-- Use the checkboxes in the queue to select files, then use **Remove Selected** or **Clear List** to manage the queue.
-- Use **Open Output Folder** from the success message after conversion.
+The app checks for LibreOffice in this order:
 
-For folder scans, SlideDrop writes PDFs to a `pdf` folder inside the selected folder. For individually selected files from mixed locations, SlideDrop writes each PDF beside its source file.
+1. Bundled resource paths.
+2. Saved user settings.
+3. The system `PATH`.
+4. Standard platform install locations.
 
-The queue is the main workspace. It shows the file name, parent folder, and conversion status in a lightweight native list. Full paths are intentionally de-emphasized to keep the review step readable, and inactive actions stay disabled until they are useful.
+Commercial installers should bundle LibreOffice separately and include the
+required LibreOffice notices. See `NOTICE.txt` and `resources/README.md`.
 
-## PDF Fidelity Notes
+## Legal
 
-SlideDrop relies on LibreOffice Impress PDF export to preserve slide size, orientation, fonts, spacing, images, and layout as closely as LibreOffice allows. Missing fonts on the system may cause layout changes or font substitution.
+This repository is source-visible but proprietary. See `LICENSE`.
 
-PDF is a static format. It keeps slide visuals, but it does not preserve PowerPoint animations, transitions, audio, video, or interactive media behavior.
+LibreOffice is a third-party project and remains governed by its own licenses.
+See `NOTICE.txt`.
 
-The **High Quality PDF** checkbox is experimental in v1. Until LibreOffice Impress PDF filter options are verified, SlideDrop keeps the default conversion path for reliability.
+## Developer Setup
 
-## Windows Packaging
+Create and activate a virtual environment:
 
-Install packaging dependencies:
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+Install dependencies:
 
 ```powershell
 python -m pip install -r requirements.txt -r requirements-dev.txt
 ```
+
+Run the app from source:
+
+```powershell
+python run.py
+```
+
+Run tests:
+
+```powershell
+python -m pytest
+```
+
+## Windows Packaging
 
 Recommended portable release build:
 
@@ -82,27 +104,9 @@ release\windows\SlideDrop-windows-portable.zip
 release\windows\SlideDrop-portable\SlideDrop.exe
 ```
 
-Optional one-folder build:
-
-```powershell
-.\scripts\windows\build.ps1 -Mode OneFolder
-```
-
-Build both formats:
-
-```powershell
-.\scripts\windows\build.ps1 -Mode Both
-```
-
-The portable single-EXE build is the clearest v1 artifact to publish because users only see one file. The one-folder build is still useful for diagnostics and future installer work. If drag-and-drop breaks in a frozen Windows build, manual **Select PowerPoint Files** and **Select Folder** flows remain the supported v1 fallback.
-
-For a polished distributable installer later, wrap the portable EXE or one-folder output with an installer tool such as InstallForge or Inno Setup. LibreOffice is not bundled, so the installer should either require LibreOffice or guide users to install it.
-
 ## macOS Packaging
 
-macOS packages must be built on macOS. PyInstaller cannot reliably create a `.app` bundle from Windows.
-
-On a Mac:
+macOS packages must be built on macOS.
 
 ```bash
 chmod +x scripts/macos/build-macos.sh
@@ -116,12 +120,7 @@ release/macos/SlideDrop-macOS.zip
 dist/macos/SlideDrop.app
 ```
 
-The macOS build is intentionally separate from the Windows release output:
-
-```text
-release/windows/SlideDrop-windows-portable.zip
-release/macos/SlideDrop-macOS.zip
-```
+Apple code signing and notarization should be added before public macOS sales.
 
 ## Project Layout
 
@@ -136,23 +135,4 @@ release/windows/
 release/macos/
 ```
 
-For public distribution, Apple notarization and code signing should be added later so users do not see Gatekeeper warnings.
-
-## GitHub Pages
-
-The marketing/download page lives in `docs/`.
-
-To enable it on GitHub:
-
-1. Push the repository to GitHub.
-2. Open **Settings > Pages**.
-3. Set the source to **Deploy from a branch**.
-4. Choose the main branch and `/docs` folder.
-5. Save, then use the generated GitHub Pages URL.
-
-The current page is static HTML/CSS and can be edited in:
-
-```text
-docs/index.html
-docs/styles.css
-```
+The GitHub Pages site lives in `docs/`.
