@@ -4,6 +4,7 @@ import threading
 from collections.abc import Callable, Sequence
 
 from .engines.base import ConversionEngine
+from .engines.options import ConversionOptions
 from .models import FileStatus, QueueItem
 
 
@@ -20,9 +21,11 @@ class ConversionWorker:
         on_progress: ProgressCallback,
         on_log: LogCallback,
         on_done: DoneCallback,
+        conversion_options: ConversionOptions | None = None,
     ) -> None:
         self.items = list(items)
         self.converter = converter
+        self.conversion_options = conversion_options or ConversionOptions()
         self.on_progress = on_progress
         self.on_log = on_log
         self.on_done = on_done
@@ -57,7 +60,7 @@ class ConversionWorker:
             self.on_progress(item, index - 1, total)
             self.on_log(f"Converting: {item.source_path}")
 
-            result = self.converter.convert(item)
+            result = self.converter.convert(item, self.conversion_options)
             if result.success:
                 item.status = FileStatus.DONE
                 item.output_pdf = result.output_pdf

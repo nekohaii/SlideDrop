@@ -11,6 +11,9 @@ Set-Location $ProjectRoot
 Write-Host "Installing runtime and packaging dependencies..."
 python -m pip install -r requirements.txt -r requirements-dev.txt
 
+Write-Host "Syncing Windows VERSIONINFO..."
+python "$ProjectRoot\scripts\windows\sync-version-info.py"
+
 Remove-Item -Recurse -Force dist\windows, release\windows -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path release\windows | Out-Null
 

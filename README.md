@@ -30,6 +30,42 @@ Unzip the package and run `SlideDrop.exe`.
 - Writes folder-scan PDFs into a local `pdf` folder.
 - Writes individually selected mixed-location PDFs beside their source files.
 - Keeps files local; no cloud upload is used.
+- Optional skip-if-unchanged conversions using a SHA-256 sidecar next to each PDF.
+- Font preflight for `.pptx` warns when referenced fonts look missing before conversion starts.
+
+## Automation (CLI and local API)
+
+Install the package (`pip install -e .`), then use the `slidedrop` console script:
+
+```powershell
+slidedrop gui
+```
+
+Headless batch conversion prints one JSON line per source file:
+
+```powershell
+slidedrop convert .\deck.pptx .\incoming_folder --timeout 300 --skip-unchanged
+```
+
+Local JSON automation server (loopback only):
+
+```powershell
+slidedrop api --host 127.0.0.1 --port 8765
+```
+
+`POST /v1/convert` accepts JSON such as:
+
+```json
+{
+  "paths": ["C:\\\\incoming\\\\deck.pptx"],
+  "timeout": 300,
+  "skip_if_unchanged": true,
+  "export_notes": false,
+  "pdf_extra": {}
+}
+```
+
+Advanced `.pptx` tuning merges keys into LibreOffice `impress_pdf_Export` via `--pdf-extra-json` or `pdf_extra`.
 
 ## Limitations
 
@@ -62,6 +98,18 @@ This repository is source-visible but proprietary. See `LICENSE`.
 LibreOffice is a third-party project and remains governed by its own licenses.
 See `NOTICE.txt`.
 
+## Supply chain and CI
+
+- Dependabot watches pip and GitHub Actions updates (`.github/dependabot.yml`).
+- Tests run on every push with a **65% coverage floor** on automation-tested modules (the GUI and local API entrypoints are excluded from that denominator; see `pyproject.toml`).
+- Enable **branch protection** on `main` requiring the `Tests` workflow to pass before merges.
+- GitHub Pages can deploy via `.github/workflows/pages.yml`. Choose **Pages → GitHub Actions** if you migrate away from branch `/docs` publishing.
+- macOS `.app` builds run on GitHub-hosted runners via `.github/workflows/build-macos.yml`; Apple code signing and notarization still require developer certificates stored as repository secrets.
+
+Pinned versions live in `requirements.txt`, `requirements-dev.txt`, and `pyproject.toml`. For hash-locked installs, generate a lock file with `pip-compile --generate-hashes` in your release environment.
+
+Optional crash telemetry: set `SLIDEDROP_SENTRY_DSN` and install `sentry-sdk` if you want opt-in reporting.
+
 ## Developer Setup
 
 Create and activate a virtual environment:
@@ -83,10 +131,10 @@ Run the app from source:
 python run.py
 ```
 
-Run tests:
+Run tests (matches CI coverage gate):
 
 ```powershell
-python -m pytest
+python -m pytest --cov=slidedrop --cov-fail-under=65
 ```
 
 ## Windows Packaging
@@ -103,6 +151,14 @@ Output:
 release\windows\SlideDrop-windows-portable.zip
 release\windows\SlideDrop-portable\SlideDrop.exe
 ```
+
+Inno Setup template (adjust paths after running `build.ps1`):
+
+```text
+packaging/windows/installer.iss
+```
+
+Windows SmartScreen warnings persist until you attach an Authenticode certificate; plan signing for mainstream consumer releases.
 
 ## macOS Packaging
 

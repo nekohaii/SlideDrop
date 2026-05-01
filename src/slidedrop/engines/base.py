@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Protocol
 
 from ..models import QueueItem
+from .options import ConversionOptions
 
 
 @dataclass
@@ -24,5 +25,5 @@ class ConversionEngine(Protocol):
     def validate(self) -> tuple[bool, str]:
         ...
 
-    def convert(self, item: QueueItem) -> ConversionResult:
+    def convert(self, item: QueueItem, options: ConversionOptions | None = None) -> ConversionResult:
         ...

@@ -12,9 +12,11 @@ import customtkinter as ctk
 from .config import APP_NAME, APP_VERSION
 from .engines.discovery import discover_libreoffice
 from .engines.libreoffice import LibreOfficeStrategy
+from .engines.options import ConversionOptions
 from .manager import ConversionManager
 from .models import FileStatus, QueueItem
-from .services.logging import configure_logging
+from .services.font_preflight import missing_fonts_for_presentation
+from .services.logging import configure_logging, logs_directory
 from .settings import SettingsStore
 from .worker import ConversionWorker
 
@@ -187,7 +189,7 @@ class LibreOfficeSettingsDialog(ctk.CTkToplevel):
     def __init__(self, master, current_path: Path | None, on_save) -> None:
         super().__init__(master)
         self.title("LibreOffice Settings")
-        self.geometry("620x260")
+        self.geometry("620x320")
         self.resizable(False, False)
         self.transient(master)
         self.grab_set()
@@ -214,14 +216,21 @@ class LibreOfficeSettingsDialog(ctk.CTkToplevel):
             row=3, column=0, padx=24, pady=(2, 10), sticky="w"
         )
         path_row = ctk.CTkFrame(self, fg_color="transparent")
-        path_row.grid(row=4, column=0, padx=24, pady=(0, 16), sticky="ew")
+        path_row.grid(row=4, column=0, padx=24, pady=(0, 10), sticky="ew")
         path_row.grid_columnconfigure(0, weight=1)
         ctk.CTkEntry(path_row, textvariable=self.path_var).grid(row=0, column=0, sticky="ew")
         ctk.CTkButton(path_row, text="Browse", width=90, command=self._browse).grid(
             row=0, column=1, padx=(10, 0)
         )
+        ctk.CTkLabel(
+            self,
+            text=f"Log file: {logs_directory() / 'slidedrop.log'}",
+            text_color="#94a3b8",
+            wraplength=560,
+            justify="left",
+        ).grid(row=5, column=0, padx=24, pady=(0, 12), sticky="w")
         actions = ctk.CTkFrame(self, fg_color="transparent")
-        actions.grid(row=5, column=0, padx=24, sticky="e")
+        actions.grid(row=6, column=0, padx=24, sticky="e")
         ctk.CTkButton(actions, text="Reset to Auto", width=120, command=self._reset).grid(
             row=0, column=0, padx=(0, 10)
         )
@@ -257,12 +266,19 @@ class MainWindow(ctk.CTkFrame):
         self.logger = configure_logging()
         self.settings_store = SettingsStore()
         self.settings = self.settings_store.load()
-        self.manager = ConversionManager(engine=LibreOfficeStrategy(self.settings.libreoffice_path))
+        self.manager = ConversionManager(
+            engine=LibreOfficeStrategy(
+                self.settings.libreoffice_path,
+                timeout_seconds=self.settings.conversion_timeout_seconds,
+            )
+        )
         self.worker: ConversionWorker | None = None
         self.event_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self.selected_ids: set[str] = set()
 
         self.open_output_var = tk.BooleanVar(value=self.settings.open_output_when_finished)
+        self.skip_unchanged_var = tk.BooleanVar(value=self.settings.skip_if_unchanged)
+        self.speaker_notes_var = tk.BooleanVar(value=self.settings.export_speaker_notes)
         self.file_count_var = tk.StringVar(value="0 files queued")
         self.summary_var = tk.StringVar(value="Ready")
         self.logs_visible = False
@@ -454,6 +470,26 @@ class MainWindow(ctk.CTkFrame):
             border_color="#3b82f6",
             checkmark_color="#ffffff",
         ).grid(row=0, column=0, sticky="w")
+        extra = ctk.CTkFrame(options, fg_color="transparent")
+        extra.grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        ctk.CTkCheckBox(
+            extra,
+            text="Skip unchanged PDFs (content hash)",
+            variable=self.skip_unchanged_var,
+            fg_color="#2563eb",
+            hover_color="#1d4ed8",
+            border_color="#3b82f6",
+            checkmark_color="#ffffff",
+        ).grid(row=0, column=0, padx=(0, 18), sticky="w")
+        ctk.CTkCheckBox(
+            extra,
+            text="Include speaker note pages",
+            variable=self.speaker_notes_var,
+            fg_color="#2563eb",
+            hover_color="#1d4ed8",
+            border_color="#3b82f6",
+            checkmark_color="#ffffff",
+        ).grid(row=0, column=1, sticky="w")
         self.convert_button = ctk.CTkButton(
             options,
             text="Convert to PDF",
@@ -665,17 +701,35 @@ class MainWindow(ctk.CTkFrame):
             self.log(message)
             return
 
+        warn_fonts: set[str] = set()
+        for queued in items:
+            for font_name in missing_fonts_for_presentation(queued.source_path):
+                warn_fonts.add(font_name)
+
+        font_lines = ""
+        if warn_fonts:
+            ordered = sorted(warn_fonts, key=str.casefold)
+            sample = ordered[:12]
+            font_lines = "Preflight: fonts that may be missing on this PC:\n" + "\n".join(f"- {name}" for name in sample)
+            remainder = len(ordered) - len(sample)
+            if remainder > 0:
+                font_lines += f"\n...and {remainder} more."
+            font_lines += "\n\n"
+
         proceed = messagebox.askokcancel(
             APP_NAME,
-            "Missing fonts on this PC may cause layout changes or font substitution in the PDF.\n\n"
-            "PDF output is static and does not preserve animations, transitions, audio, or video interactivity.\n\n"
-            "Continue conversion?",
+            font_lines
+            + "Missing fonts commonly cause layout shifts or substitutions in PDF.\n\n"
+            + "PDF output is static and does not preserve animations, transitions, audio, or video interactivity.\n\n"
+            + "Continue conversion?",
         )
         if not proceed:
             self.log("Conversion cancelled before start.")
             return
 
         self.settings.open_output_when_finished = self.open_output_var.get()
+        self.settings.skip_if_unchanged = self.skip_unchanged_var.get()
+        self.settings.export_speaker_notes = self.speaker_notes_var.get()
         self.settings_store.save(self.settings)
 
         self._show_progress()
@@ -683,12 +737,18 @@ class MainWindow(ctk.CTkFrame):
         self.summary_var.set("Converting...")
         self.success_card.grid_remove()
         self._update_action_states(is_converting=True)
+        conversion_options = ConversionOptions(
+            timeout_seconds=max(30, self.settings.conversion_timeout_seconds),
+            skip_if_unchanged=self.settings.skip_if_unchanged,
+            export_notes_pages=self.settings.export_speaker_notes,
+        )
         self.worker = ConversionWorker(
             items=items,
             converter=self.manager.engine,
             on_progress=lambda item, current, total: self.event_queue.put(("progress", (item, current, total))),
             on_log=lambda text: self.event_queue.put(("log", text)),
             on_done=lambda success, failed: self.event_queue.put(("done", (success, failed))),
+            conversion_options=conversion_options,
         )
         self.worker.start()
 
@@ -814,7 +874,9 @@ class MainWindow(ctk.CTkFrame):
     def _save_libreoffice_path(self, path: Path | None) -> None:
         self.settings.libreoffice_path = path
         self.settings_store.save(self.settings)
-        self.manager.set_engine(LibreOfficeStrategy(path))
+        self.manager.set_engine(
+            LibreOfficeStrategy(path, timeout_seconds=self.settings.conversion_timeout_seconds),
+        )
         valid, message = self.manager.validate_engine()
         if valid:
             self.log(message)

@@ -21,6 +21,7 @@ class QueueItem:
     status: FileStatus = FileStatus.PENDING
     message: str = ""
     output_pdf: Path | None = None
+    content_sha256: str | None = None
     item_id: str = field(default_factory=lambda: uuid4().hex)
 
     @property

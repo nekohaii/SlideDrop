@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -13,6 +14,9 @@ class SessionSettings:
     last_used_folder: Path | None = None
     libreoffice_path: Path | None = None
     open_output_when_finished: bool = False
+    conversion_timeout_seconds: int = 300
+    skip_if_unchanged: bool = False
+    export_speaker_notes: bool = False
 
     @classmethod
     def from_dict(cls, data: dict) -> "SessionSettings":
@@ -22,9 +26,12 @@ class SessionSettings:
             last_used_folder=Path(last_used_folder) if last_used_folder else None,
             libreoffice_path=Path(libreoffice_path) if libreoffice_path else None,
             open_output_when_finished=bool(data.get("open_output_when_finished", False)),
+            conversion_timeout_seconds=int(data.get("conversion_timeout_seconds", 300)),
+            skip_if_unchanged=bool(data.get("skip_if_unchanged", False)),
+            export_speaker_notes=bool(data.get("export_speaker_notes", False)),
         )
 
-    def to_dict(self) -> dict[str, str | bool | None]:
+    def to_dict(self) -> dict[str, str | bool | int | None]:
         data = asdict(self)
         data["last_used_folder"] = str(self.last_used_folder) if self.last_used_folder else None
         data["libreoffice_path"] = str(self.libreoffice_path) if self.libreoffice_path else None
@@ -34,7 +41,7 @@ class SessionSettings:
 def user_data_dir() -> Path:
     if os.name == "nt":
         base = Path(os.getenv("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
-    elif os.sys.platform == "darwin":
+    elif sys.platform == "darwin":
         base = Path.home() / "Library" / "Application Support"
     else:
         base = Path(os.getenv("XDG_DATA_HOME") or Path.home() / ".local" / "share")

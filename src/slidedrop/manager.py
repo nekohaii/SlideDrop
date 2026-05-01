@@ -6,6 +6,7 @@ from .engines.base import ConversionEngine
 from .engines.libreoffice import LibreOfficeStrategy
 from .models import FileStatus, QueueItem
 from .scanner import FileScanner
+from .services.hashing import sha256_file
 
 
 class ConversionManager:
@@ -26,6 +27,10 @@ class ConversionManager:
         for item in self.scanner.scan_paths(paths):
             if item.source_path in self._known_sources:
                 continue
+            try:
+                item.content_sha256 = sha256_file(item.source_path)
+            except OSError:
+                item.content_sha256 = None
             self._known_sources.add(item.source_path)
             self.items.append(item)
             added.append(item)

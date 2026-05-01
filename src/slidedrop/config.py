@@ -1,9 +1,10 @@
 import sys
 from pathlib import Path
 
+from .version import __version__ as APP_VERSION
+
 
 APP_NAME = "SlideDrop"
-APP_VERSION = "0.1.0"
 if sys.platform == "darwin":
     DEFAULT_LIBREOFFICE_PATH = Path("/Applications/LibreOffice.app/Contents/MacOS/soffice")
 else:
