@@ -24,6 +24,6 @@ jobs:
           WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
         run: .\scripts\windows\build.ps1
       - name: Upload GitHub Release asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release/windows/SlideDrop-windows-portable.zip
