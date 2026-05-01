@@ -9,7 +9,7 @@ from tkinter import filedialog, messagebox, ttk
 
 import customtkinter as ctk
 
-from .config import APP_NAME, APP_VERSION
+from .settings import APP_NAME, APP_VERSION
 from .engines.discovery import discover_libreoffice
 from .engines.libreoffice import LibreOfficeStrategy
 from .engines.options import ConversionOptions

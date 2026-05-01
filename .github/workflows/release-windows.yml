@@ -18,6 +18,10 @@ jobs:
           python-version: "3.10"
       - name: Build Windows portable package
         shell: pwsh
+        env:
+          # Optional: base64-encoded .pfx and its password — never commit real values.
+          WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
+          WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
         run: .\scripts\windows\build.ps1
       - name: Upload GitHub Release asset
         uses: softprops/action-gh-release@v2

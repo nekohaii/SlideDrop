@@ -47,10 +47,10 @@ Headless batch conversion prints one JSON line per source file:
 slidedrop convert .\deck.pptx .\incoming_folder --timeout 300 --skip-unchanged
 ```
 
-Local JSON automation server (loopback only):
+Local JSON automation server (**always** binds to `127.0.0.1` only; no `--host`). Any local HTTP listener may trigger a one-time OS firewall prompt even though it is not reachable from your LAN.
 
 ```powershell
-slidedrop api --host 127.0.0.1 --port 8765
+slidedrop api --port 8765
 ```
 
 `POST /v1/convert` accepts JSON such as:
@@ -159,6 +159,13 @@ packaging/windows/installer.iss
 ```
 
 Windows SmartScreen warnings persist until you attach an Authenticode certificate; plan signing for mainstream consumer releases.
+
+Tag-driven releases (`.github/workflows/release-windows.yml`) optionally sign the portable EXE **before** zipping when these repository secrets are set (never commit certificates):
+
+- `WINDOWS_PFX_BASE64` — base64-encoded `.pfx`
+- `WINDOWS_PFX_PASSWORD` — PFX password
+
+Local signing uses the same variables with `.\scripts\windows\build.ps1` after exporting them in your shell.
 
 ## macOS Packaging
 

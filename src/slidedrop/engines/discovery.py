@@ -5,7 +5,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from ..config import DEFAULT_LIBREOFFICE_PATH
+from ..settings import DEFAULT_LIBREOFFICE_PATH
 
 
 def _project_root() -> Path:

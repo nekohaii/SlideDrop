@@ -68,7 +68,7 @@ def _cmd_api(args: argparse.Namespace) -> int:
     configure_logging()
     from slidedrop.services.local_api import serve_convert_api
 
-    serve_convert_api(host=args.host, port=args.port)
+    serve_convert_api(port=args.port)
     return 0
 
 
@@ -94,10 +94,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_api = sub.add_parser(
         "api",
-        help="Bind localhost HTTP JSON API for automation (POST /v1/convert)",
+        help="Loopback-only HTTP JSON API (POST /v1/convert); binds 127.0.0.1",
     )
-    p_api.add_argument("--host", default="127.0.0.1")
-    p_api.add_argument("--port", type=int, default=8765)
+    p_api.add_argument(
+        "--port",
+        type=int,
+        default=8765,
+        help="TCP port (server always listens on 127.0.0.1 only)",
+    )
     p_api.set_defaults(func=_cmd_api)
 
     return parser

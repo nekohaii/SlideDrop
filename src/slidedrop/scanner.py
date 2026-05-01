@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .config import PDF_OUTPUT_FOLDER_NAME, SUPPORTED_EXTENSIONS
+from .settings import PDF_OUTPUT_FOLDER_NAME, SUPPORTED_EXTENSIONS
 from .models import QueueItem
 
 

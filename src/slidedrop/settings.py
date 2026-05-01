@@ -1,12 +1,32 @@
 from __future__ import annotations
 
+"""
+Application naming, immutable defaults, and persisted session settings.
+
+All user-adjustable values belong in SessionSettings / SettingsStore.
+Install-path constants and supported formats live here alongside APP_NAME.
+"""
+
 import json
 import os
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from .config import APP_NAME
+from .version import __version__ as APP_VERSION
+
+APP_NAME = "SlideDrop"
+
+if sys.platform == "darwin":
+    DEFAULT_LIBREOFFICE_PATH = Path("/Applications/LibreOffice.app/Contents/MacOS/soffice")
+else:
+    DEFAULT_LIBREOFFICE_PATH = Path(r"C:\Program Files\LibreOffice\program\soffice.exe")
+
+SUPPORTED_EXTENSIONS = {".ppt", ".pptx"}
+PDF_OUTPUT_FOLDER_NAME = "pdf"
+
+# LibreOffice Impress PDF filter tuning hook name for advanced callers.
+EXPERIMENTAL_HIGH_QUALITY_FILTER = "impress_pdf_Export"
 
 
 @dataclass
@@ -19,7 +39,7 @@ class SessionSettings:
     export_speaker_notes: bool = False
 
     @classmethod
-    def from_dict(cls, data: dict) -> "SessionSettings":
+    def from_dict(cls, data: dict) -> SessionSettings:
         last_used_folder = data.get("last_used_folder")
         libreoffice_path = data.get("libreoffice_path")
         return cls(

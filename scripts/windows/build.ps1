@@ -51,6 +51,15 @@ if ($Mode -eq "Portable" -or $Mode -eq "Both") {
 
     New-Item -ItemType Directory -Force -Path release\windows\SlideDrop-portable | Out-Null
     Copy-Item -Force dist\windows\SlideDrop.exe release\windows\SlideDrop-portable\SlideDrop.exe
+
+    if ($env:WINDOWS_PFX_BASE64 -and $env:WINDOWS_PFX_PASSWORD) {
+        Write-Host "Signing portable EXE (Authenticode)..."
+        & (Join-Path $ScriptDir "sign-exe.ps1") -ExePath "release\windows\SlideDrop-portable\SlideDrop.exe"
+    }
+    else {
+        Write-Host "Skipping Authenticode: set WINDOWS_PFX_BASE64 and WINDOWS_PFX_PASSWORD to sign before zipping."
+    }
+
     Copy-Item -Force README.md release\windows\SlideDrop-portable\README.txt
     Copy-Item -Force LICENSE release\windows\SlideDrop-portable\LICENSE.txt
     Copy-Item -Force NOTICE.txt release\windows\SlideDrop-portable\NOTICE.txt
